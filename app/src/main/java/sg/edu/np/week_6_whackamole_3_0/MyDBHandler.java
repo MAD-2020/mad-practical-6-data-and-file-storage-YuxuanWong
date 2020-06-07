@@ -6,7 +6,6 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
-
 import java.util.ArrayList;
 
 public class MyDBHandler extends SQLiteOpenHelper {
@@ -19,10 +18,12 @@ public class MyDBHandler extends SQLiteOpenHelper {
             c. Level
             d. Score
         3. Add user method for adding user into the Database.
-        4. Find user method that finds the current position of the user and his corresponding
-           data information - username, password, level highest score for each level
+        4. Find user method that finds the current position of
+           the user and his corresponding data information
+           - username, password, level highest score for each level
         5. Delete user method that deletes based on the username
-        6. To replace the data in the database, we would make use of find user, delete user and add user
+        6. To replace the data in the database, we would make use
+           of find user, delete user and add user
 
         The database shall look like the following:
 
@@ -45,13 +46,22 @@ public class MyDBHandler extends SQLiteOpenHelper {
 
     private static final String FILENAME = "MyDBHandler.java";
     private static final String TAG = "Whack-A-Mole3.0!";
+    public static final int DATABASE_VERSION = 1;
+    public static final String DATABASE_NAME = "WhackAMole.db";
+    public static final String TABLE_ACCOUNTS = "Accounts";
+    public static final String COLUMN_USERNAME = "Username";
+    public static final String COLUMN_PASSWORD = "Password";
+    public static final String COLUMN_LEVEL = "Level";
+    public static final String COLUMN_SCORE = "Score";
 
     public MyDBHandler(Context context, String name, SQLiteDatabase.CursorFactory factory, int version)
     {
         /* HINT:
             This is used to init the database.
          */
+        super(context, DATABASE_NAME, factory, DATABASE_VERSION);
     }
+
     @Override
     public void onCreate(SQLiteDatabase db)
     {
@@ -59,14 +69,23 @@ public class MyDBHandler extends SQLiteOpenHelper {
             This is triggered on DB creation.
             Log.v(TAG, "DB Created: " + CREATE_ACCOUNTS_TABLE);
          */
-
+        String CREATE_ACCOUNTS_TABLE = "CREATE TABLE " + TABLE_ACCOUNTS +
+                "(" + COLUMN_USERNAME + " TEXT,"
+                + COLUMN_PASSWORD + " TEXT,"
+                + COLUMN_LEVEL + " INTEGER,"
+                + COLUMN_SCORE + " INTEGER" + ")";
+        db.execSQL(CREATE_ACCOUNTS_TABLE);
+        Log.d(TAG, "DB Created: " + CREATE_ACCOUNTS_TABLE);
     }
+
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion)
     {
         /* HINT:
             This is triggered if there is a new version found. ALL DATA are replaced and irreversible.
          */
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_ACCOUNTS);
+        onCreate(db);
     }
 
     public void addUser(UserData userData)
@@ -75,6 +94,20 @@ public class MyDBHandler extends SQLiteOpenHelper {
                 This adds the user to the database based on the information given.
                 Log.v(TAG, FILENAME + ": Adding data for Database: " + values.toString());
              */
+            ContentValues values = new ContentValues();
+
+            for (int i = 0; i <= 10; i++){
+                values.put(COLUMN_USERNAME, userData.getMyUserName());
+                values.put(COLUMN_PASSWORD, userData.getMyPassword());
+                values.put(COLUMN_LEVEL, userData.getLevels().get(i));
+                values.put(COLUMN_SCORE, userData.getScores().get(i));
+                SQLiteDatabase db = this.getWritableDatabase();
+
+                db.insert(TABLE_ACCOUNTS, null, values);
+                Log.d(TAG, FILENAME + ": Adding data for Database: " + values.toString());
+                db.close();
+            }
+
     }
 
     public UserData findUser(String username)
@@ -99,6 +132,32 @@ public class MyDBHandler extends SQLiteOpenHelper {
                 Log.v(TAG, FILENAME+ ": No data found!");
             }
          */
+        String query = "SELECT * FROM " + TABLE_ACCOUNTS + " WHERE " + COLUMN_USERNAME + " = \"" + username + "\"";
+        SQLiteDatabase db = this.getWritableDatabase();
+        Cursor cursor = db.rawQuery(query, null);
+        UserData queryData = new UserData();
+        ArrayList<Integer> level = new ArrayList<>();
+        ArrayList<Integer> score = new ArrayList<>();
+
+        if (cursor.moveToFirst()){
+            queryData.setMyUserName(cursor.getString(0));
+            queryData.setMyPassword(cursor.getString(1));
+            do{
+                level.add(cursor.getInt(2));
+                score.add(cursor.getInt(3));
+            }
+            while(cursor.moveToNext());
+            cursor.close();
+            queryData.setLevels(level);
+            queryData.setScores(score);
+            Log.d(TAG, FILENAME + ": QueryData: " + queryData.getLevels().toString() + queryData.getScores().toString());
+        }
+        else{
+            queryData = null;
+            Log.d(TAG, FILENAME+ ": No data found!");
+        }
+        db.close();
+        return queryData;
     }
 
     public boolean deleteAccount(String username) {
@@ -107,6 +166,19 @@ public class MyDBHandler extends SQLiteOpenHelper {
             This is not reversible.
             Log.v(TAG, FILENAME + ": Database delete user: " + query);
          */
-
+        boolean result = false;
+        String query = "SELECT * FROM " + TABLE_ACCOUNTS + " WHERE " + COLUMN_USERNAME + " = \"" + username + "\"";
+        SQLiteDatabase db = this.getWritableDatabase();
+        Cursor cursor = db.rawQuery(query, null);
+        UserData queryData = new UserData();
+        if (cursor.moveToFirst()){
+            queryData.setMyUserName(cursor.getString(0));
+            db.delete(TABLE_ACCOUNTS, COLUMN_USERNAME + " = ?",
+                    new String[] {String.valueOf(queryData.getMyUserName())});
+            cursor.close();
+            result = true;
+        }
+        db.close();
+        return result;
     }
 }
